@@ -1,4 +1,4 @@
-use std::{fs, path::Path, time::UNIX_EPOCH};
+use std::{fmt::Error, fs, path::Path, time::UNIX_EPOCH};
 
 use chrono::{DateTime, Utc};
 use cliclack::{input, intro, log, outro};
@@ -80,25 +80,44 @@ fn rename_images(path: &str) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+fn verify_path(path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    if path.is_empty() {
+        return Err("Please provide a non empty path".into());
+    }
+
+    let Ok(_) = Path::new(path).read_dir() else {
+        return Err("Invalid path directory".into());
+    };
+
+    Ok(())
+}
+
+fn req_user_for_path() -> Result<String, Box<dyn std::error::Error>> {
+    let str = input("Where are your pictures located on your computper")
+        .placeholder("path/to/my/pictures")
+        .validate(|path: &String| verify_path(&path))
+        .interact::<String>()?
+        .to_string();
+    Ok(str)
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args: Vec<String> = std::env::args().collect();
+
+    let path = if args.len() == 2 { &args[1] } else { "" };
+
     intro("Image renamer")?;
 
-    let path: String = input("Where are your pictures located on your computper")
-        .placeholder("path/to/my/pictures")
-        .validate(|path: &String| {
-            if path.is_empty() {
-                return Err("Please provide a non empty path");
-            }
+    let path = if verify_path(path).is_err() {
+        let Ok(str) = req_user_for_path() else {
+            return Err("Error occured".into());
+        };
+        str.to_owned()
+    } else {
+        path.to_string()
+    };
 
-            let Ok(_) = Path::new(path).read_dir() else {
-                return Err("Invalid path directory");
-            };
-
-            Ok(())
-        })
-        .interact()?;
-
-    rename_images(&path.as_str())?;
+    rename_images(&path)?;
 
     outro("Your pictures have been renamed successfully!")?;
 
