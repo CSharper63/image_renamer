@@ -1,6 +1,7 @@
 use std::{fs, path::Path, time::UNIX_EPOCH};
 
 use chrono::{DateTime, Utc};
+use cliclack::{input, intro, log, outro};
 
 // todo verify edge cases
 fn rename_images(path: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -68,25 +69,38 @@ fn rename_images(path: &str) -> Result<(), Box<dyn std::error::Error>> {
         // rename the file with its creation date
         fs::rename(entry.path(), new_path)?;
         element_processed_counter += 1;
-        println!("{} renamed by {}", old_name, new_name.clone());
+        log::success(format!("{} renamed by {}", old_name, new_name.clone()))?;
     }
 
-    println!("Total renamed images: {}", element_processed_counter);
+    log::success(format!(
+        "Total renamed images: {}",
+        element_processed_counter
+    ))?;
 
     Ok(())
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args: Vec<String> = std::env::args().collect();
+    intro("Image renamer")?;
 
-    while args.len() != 2 {
-        println!("Please provide the dir path which contains your images: ");
-        println!("Usage: image_renamer <img_dir_path>");
-    }
+    let path: String = input("Where are your pictures located on your computper")
+        .placeholder("path/to/my/pictures")
+        .validate(|path: &String| {
+            if path.is_empty() {
+                return Err("Please provide a non empty path");
+            }
 
-    let dir_path = &args[1];
+            let Ok(_) = Path::new(path).read_dir() else {
+                return Err("Invalid path directory");
+            };
 
-    rename_images(&dir_path)?;
+            Ok(())
+        })
+        .interact()?;
+
+    rename_images(&path.as_str())?;
+
+    outro("Your pictures have been renamed successfully!")?;
 
     Ok(())
 }
