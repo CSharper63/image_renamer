@@ -55,16 +55,17 @@ fn rename_images(path: &str) -> Result<(), Box<dyn std::error::Error>> {
 
         // build new name based on the creation date
         let mut new_name = format!("{}.{}", created_at, ext);
-        let new_path = entry.path().with_file_name(new_name.clone());
+        let mut new_path = entry.path().with_file_name(new_name.clone());
 
         // verify duplicate
-        if new_path.exists() {
+        // handle case if existing, avoid erasing file with same name
+        while new_path.exists() {
             duplicate_counter += 1;
             new_name = format!("{}_{}.{}", created_at, duplicate_counter, ext);
+            new_path = entry.path().with_file_name(new_name.clone());
         }
 
         // rename the file with its creation date
-        let new_path = entry.path().with_file_name(new_name.clone());
         fs::rename(entry.path(), new_path)?;
         element_processed_counter += 1;
         println!("{} renamed by {}", old_name, new_name.clone());
