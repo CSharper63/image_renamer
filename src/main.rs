@@ -1,5 +1,8 @@
+mod model;
+
 use chrono::{DateTime, Utc};
 use cliclack::{input, intro, log, outro};
+use model::Params;
 use std::{fs, path::Path, time::UNIX_EPOCH, usize};
 
 // todo verify edge cases
@@ -109,17 +112,6 @@ fn req_user_for_path() -> Result<String, Box<dyn std::error::Error>> {
     Ok(str)
 }
 
-struct Params {
-    verbose: bool,
-    path: String,
-}
-
-impl Params {
-    pub fn new(verbose: bool, path: String) -> Self {
-        Params { verbose, path }
-    }
-}
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = std::env::args();
 
@@ -132,23 +124,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // image dir param
         let img_dir = args.next().unwrap_or("".to_string());
-        params.path = img_dir.clone();
+        params.set_path(img_dir.clone());
 
         // verbose param
         let verbose = args.next().unwrap_or("".to_string());
-        params.verbose = verbose == "-v".to_string();
+        params.set_verbose(verbose == "-v".to_string());
     }
 
     intro("Image renamer")?;
 
-    if verify_path(&params.path).is_err() {
+    if verify_path(&params.get_path()).is_err() {
         let Ok(str) = req_user_for_path() else {
             return Err("Error occured".into());
         };
-        params.path = str;
+        params.set_path(str);
     };
 
-    rename_images(&params.path, params.verbose)?;
+    rename_images(&params.get_path(), params.get_verbose())?;
 
     outro("Your pictures have been renamed successfully!")?;
 
