@@ -1,11 +1,10 @@
-use std::{fmt::Error, fs, path::Path, time::UNIX_EPOCH};
-
 use chrono::{DateTime, Utc};
 use cliclack::{input, intro, log, outro};
+use std::{fs, path::Path, time::UNIX_EPOCH, usize};
 
 // todo verify edge cases
-fn rename_images(path: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let allowed_ext = vec!["jpg", "png", "jpeg", "gif", "tiff", "raw"];
+fn rename_images(path: &str, verbose: bool) -> Result<(), Box<dyn std::error::Error>> {
+    let allowed_ext = vec!["jpg", "png", "jpeg", "gif", "tiff", "raw", "heic"];
 
     if path.is_empty() {
         return Err("Please provide a non empty path".into());
@@ -15,7 +14,6 @@ fn rename_images(path: &str) -> Result<(), Box<dyn std::error::Error>> {
         return Err("Invalid path directory".into());
     };
 
-    let mut duplicate_counter: u32 = 0;
     let mut element_processed_counter: usize = 0;
 
     for entry in dir {
@@ -38,7 +36,8 @@ fn rename_images(path: &str) -> Result<(), Box<dyn std::error::Error>> {
             return Err("Cannot convert to DateTime".into());
         };
 
-        let created_at = dt.format("%Y-%m-%d_%H-%M-%S").to_string();
+        //let created_at = dt.format("%Y-%m-%d_%H-%M-%S").to_string();
+        let created_at = dt.format("%Y-%m-%d").to_string();
 
         // extract current name with extension
         let path = entry.path();
@@ -60,6 +59,7 @@ fn rename_images(path: &str) -> Result<(), Box<dyn std::error::Error>> {
 
         // verify duplicate
         // handle case if existing, avoid erasing file with same name
+        let mut duplicate_counter: usize = 0;
         while new_path.exists() {
             duplicate_counter += 1;
             new_name = format!("{}_{}.{}", created_at, duplicate_counter, ext);
@@ -69,6 +69,11 @@ fn rename_images(path: &str) -> Result<(), Box<dyn std::error::Error>> {
         // rename the file with its creation date
         fs::rename(entry.path(), new_path)?;
         element_processed_counter += 1;
+
+        if !verbose {
+            continue;
+        }
+
         log::success(format!("{} renamed by {}", old_name, new_name.clone()))?;
     }
 
@@ -101,23 +106,46 @@ fn req_user_for_path() -> Result<String, Box<dyn std::error::Error>> {
     Ok(str)
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args: Vec<String> = std::env::args().collect();
+struct Params {
+    verbose: bool,
+    path: String,
+}
 
-    let path = if args.len() == 2 { &args[1] } else { "" };
+impl Params {
+    pub fn new(verbose: bool, path: String) -> Self {
+        Params { verbose, path }
+    }
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args = std::env::args();
+
+    let mut params = Params::new(false, "".to_string());
+
+    // handle params
+    if args.len() <= 3 {
+        let mut args = args.into_iter();
+        args.next(); // start after prog name
+
+        // image dir param
+        let img_dir = args.next().unwrap_or("".to_string());
+        params.path = img_dir.clone();
+
+        // verbose param
+        let verbose = args.next().unwrap_or("".to_string());
+        params.verbose = verbose == "-v".to_string();
+    }
 
     intro("Image renamer")?;
 
-    let path = if verify_path(path).is_err() {
+    if verify_path(&params.path).is_err() {
         let Ok(str) = req_user_for_path() else {
             return Err("Error occured".into());
         };
-        str.to_owned()
-    } else {
-        path.to_string()
+        params.path = str;
     };
 
-    rename_images(&path)?;
+    rename_images(&params.path, params.verbose)?;
 
     outro("Your pictures have been renamed successfully!")?;
 
