@@ -4,7 +4,10 @@ use std::{fs, path::Path, time::UNIX_EPOCH, usize};
 
 // todo verify edge cases
 fn rename_images(path: &str, verbose: bool) -> Result<(), Box<dyn std::error::Error>> {
-    let allowed_ext = vec!["jpg", "png", "jpeg", "gif", "tiff", "raw", "heic"];
+    let allowed_ext = vec![
+        "jpg", "png", "jpeg", "gif", "tiff", "tif", "raw", "heic", "bmp", "heif", "webp", "jif",
+        "jfif", "jfi", "svg",
+    ];
 
     if path.is_empty() {
         return Err("Please provide a non empty path".into());
